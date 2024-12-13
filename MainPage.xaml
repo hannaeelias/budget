@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="budget.MainPage">
+        
+    <StackLayout Padding="10">
+            <!-- Title -->
+            <Label Text="Your Items" FontSize="24" HorizontalOptions="Center" />
+
+            <!-- ListView for displaying items -->
+            <ListView x:Name="ItemsListView" SelectionMode="None" ItemTapped="OnItemTapped" MaximumHeightRequest="150">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <ViewCell>
+                            <StackLayout Orientation="Horizontal" Padding="10">
+                                <CheckBox IsChecked="{Binding IsSelected}" />
+                                <Label Text="{Binding Name}" VerticalOptions="Center" />
+                            </StackLayout>
+                        </ViewCell>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <!-- Delete Button -->
+            <Button Text="Delete Selected Items" Clicked="OnDeleteItemClicked" />
+
+
+        <!-- Add Item Section -->
+            <Label Text="Add Item" FontSize="24" HorizontalOptions="Center" />
+            <Entry x:Name="NameEntry" Placeholder="Name" />
+            <Entry x:Name="DescriptionEntry" Placeholder="Description" />   
+            <Entry x:Name="CategoryEntry" Placeholder="Category (Optional)" />
+            <Entry x:Name="PriorityEntry" Placeholder="Priority" />
+            <Entry x:Name="EstimatedCostEntry" Placeholder="Estimated Cost" Keyboard="Numeric" />
+            <DatePicker x:Name="CreatedAtPicker" />
+            <Label Text="Status" />
+            <Picker x:Name="StatusPicker">
+                <Picker.Items>
+                    <x:String>In Progress</x:String>
+                    <x:String>Not Started</x:String>
+                    <x:String>Finished</x:String>
+                </Picker.Items>
+            </Picker>
+            <Button Text="Select Photo" Clicked="OnSelectPhotoClicked" />
+            <Image x:Name="PhotoImage" HeightRequest="200" />
+
+        <Button Text="Save Item" Clicked="OnSaveItemClicked" />
+        </StackLayout>
+    </ContentPage>
