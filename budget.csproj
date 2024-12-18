@@ -73,4 +73,10 @@
 		<PackageReference Include="SQLitePCLRaw.core" Version="2.1.10" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <MauiXaml Update="Itemviewing.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+
 </Project>

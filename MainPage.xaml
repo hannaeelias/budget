@@ -2,13 +2,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="budget.MainPage">
-        
-    <StackLayout Padding="10">
+    <ScrollView>
+        <StackLayout Padding="10">
             <!-- Title -->
             <Label Text="Your Items" FontSize="24" HorizontalOptions="Center" />
+            <Button Text="view items" FontSize="14" Clicked="OnNavigateToOtherPageClicked" />
 
-            <!-- ListView for displaying items -->
-            <ListView x:Name="ItemsListView" SelectionMode="None" ItemTapped="OnItemTapped" MaximumHeightRequest="150">
+            <!-- Items List - Small and always visible, but inside a ScrollView for full-page scroll -->
+            <ListView x:Name="ItemsListView" SelectionMode="None" ItemTapped="OnItemTapped" HeightRequest="250">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <ViewCell>
@@ -24,11 +25,13 @@
             <!-- Delete Button -->
             <Button Text="Delete Selected Items" Clicked="OnDeleteItemClicked" />
 
+            <!-- Divider -->
+            <BoxView HeightRequest="1" Color="LightBlue" Margin="0,10" />
 
-        <!-- Add Item Section -->
+            <!-- Add Item Section -->
             <Label Text="Add Item" FontSize="24" HorizontalOptions="Center" />
             <Entry x:Name="NameEntry" Placeholder="Name" />
-            <Entry x:Name="DescriptionEntry" Placeholder="Description" />   
+            <Entry x:Name="DescriptionEntry" Placeholder="Description" />
             <Entry x:Name="CategoryEntry" Placeholder="Category (Optional)" />
             <Entry x:Name="PriorityEntry" Placeholder="Priority" />
             <Entry x:Name="EstimatedCostEntry" Placeholder="Estimated Cost" Keyboard="Numeric" />
@@ -41,9 +44,11 @@
                     <x:String>Finished</x:String>
                 </Picker.Items>
             </Picker>
+
             <Button Text="Select Photo" Clicked="OnSelectPhotoClicked" />
             <Image x:Name="PhotoImage" HeightRequest="200" />
 
-        <Button Text="Save Item" Clicked="OnSaveItemClicked" />
+            <Button Text="Save Item" Clicked="OnSaveItemClicked" />
         </StackLayout>
-    </ContentPage>
+    </ScrollView>
+</ContentPage>

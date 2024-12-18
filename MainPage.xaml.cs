@@ -64,10 +64,10 @@ namespace budget
                 Description = DescriptionEntry.Text,
                 Category = CategoryEntry.Text,
                 Priority = PriorityEntry.Text,
-                EstimatedCost = estimatedCost, // Using the parsed value
-                CreatedAt = CreatedAtPicker.Date, // Using the date selected by the user
+                EstimatedCost = estimatedCost, 
+                CreatedAt = CreatedAtPicker.Date, 
                 IsSelected = false,
-                PhotoPath = PhotoImage.Source != null ? PhotoImage.Source.ToString() : string.Empty, // Ensure the photo path is valid
+                PhotoPath = PhotoImage.Source?.ToString() ?? string.Empty,
                 Status = selectedStatus
             };
 
@@ -76,9 +76,8 @@ namespace budget
 
             if (existingItem == null)
             {
-                // Item does not exist, create a new item
                 await _dbContext.Create(item);
-                _items.Add(item); // Add to the collection only after successful creation
+                _items.Add(item); 
                 await DisplayAlert("Success", "Item saved successfully.", "OK");
             }
             else
@@ -145,6 +144,12 @@ namespace budget
                 EstimatedCostEntry.Text = selectedItem.EstimatedCost.ToString();
             }
         }
+        private async void OnNavigateToOtherPageClicked(object sender, EventArgs e)
+        {
+            // Navigate to OtherPage
+            await Navigation.PushAsync(new Itemviewing());
+        }
+
 
     }
 }
