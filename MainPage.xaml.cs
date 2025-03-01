@@ -30,7 +30,7 @@ namespace budget
             var items = await _dbContext.GetItems();
             foreach (var item in items)
             {
-                item.IsSelected = false; // Reset selection state
+                item.IsSelected = false; 
                 _items.Add(item);
             }
         }
