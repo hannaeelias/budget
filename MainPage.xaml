@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="budget.MainPage">
     <ScrollView>
-        <StackLayout Padding="10">
+        <StackLayout MaximumWidthRequest="500">
             <!-- Title -->
             <Label Text="Your Items" FontSize="24" HorizontalOptions="Center" />
             <Button Text="view items" FontSize="14" Clicked="OnNavigateToOtherPageClicked" />
