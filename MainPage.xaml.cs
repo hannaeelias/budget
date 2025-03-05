@@ -57,17 +57,18 @@ namespace budget
                 await DisplayAlert("Error", "Estimated Cost must be a valid number.", "OK");
                 return;
             }
-            string selectedStatus = StatusPicker.SelectedItem?.ToString() ?? "In Progress";
+            string selectedcatagory = CategoryEntry?.ToString() ?? "bill";
+            string selectedStatus = StatusPicker.SelectedItem?.ToString() ?? "Not paid";
+
             var item = new Item
             {
                 Name = NameEntry.Text,
                 Description = DescriptionEntry.Text,
-                Category = CategoryEntry.Text,
+                Category = selectedcatagory,
                 Priority = PriorityEntry.Text,
                 EstimatedCost = estimatedCost, 
                 CreatedAt = CreatedAtPicker.Date, 
                 IsSelected = false,
-                PhotoPath = PhotoImage.Source?.ToString() ?? string.Empty,
                 Status = selectedStatus
             };
 
@@ -88,25 +89,6 @@ namespace budget
         }
 
 
-
-        private async void OnSelectPhotoClicked(object sender, EventArgs e)
-        {
-            var photo = await MediaPicker.PickPhotoAsync(new MediaPickerOptions
-            {
-                Title = "Select a Photo"
-            });
-
-            if (photo != null)
-            {
-                // Display the selected photo
-                var photoStream = await photo.OpenReadAsync();
-                PhotoImage.Source = ImageSource.FromStream(() => photoStream);
-
-                // Save photo path to the item
-                string photoPath = photo.FullPath;
-                // You can save the photo path to your database if necessary
-            }
-        }
         private async void OnDeleteItemClicked(object sender, EventArgs e)
         {
             var itemsToDelete = _items.Where(item => item.IsSelected).ToList();
@@ -139,7 +121,6 @@ namespace budget
                 _editItemId = selectedItem.Id;
                 NameEntry.Text = selectedItem.Name;
                 DescriptionEntry.Text = selectedItem.Description;
-                CategoryEntry.Text = selectedItem.Category;
                 PriorityEntry.Text = selectedItem.Priority;
                 EstimatedCostEntry.Text = selectedItem.EstimatedCost.ToString();
             }
