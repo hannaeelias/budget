@@ -32,7 +32,7 @@ public partial class Itemviewing : ContentPage
             return;
         }
 
-        var itemsFromDb = await _dbContext.GetItems();  
+        var itemsFromDb = await _dbContext.GetItemsForUser();  
         foreach (var item in itemsFromDb)
         {
             _items.Add(item); 

@@ -20,12 +20,19 @@ namespace budget.models
             string dbPath = Path.Combine(FileSystem.AppDataDirectory, DB_name);
             _connection = new SQLiteAsyncConnection(dbPath);
 
-            _connection.CreateTableAsync<Item>().Wait(); 
+            _connection.CreateTableAsync<User>();
+            _connection.CreateTableAsync<Item>();
+            
         }
 
-        public async Task<List<Item>> GetItems()
+        public async Task<List<Item>> GetItemsForUser()
         {
-            return await _connection.Table<Item>().ToListAsync();
+            var user = await GetUser();
+            if (user != null)
+            {
+                return await _connection.Table<Item>().Where(i => i.UserId == user.Id).ToListAsync();
+            }
+            return new List<Item>();  
         }
 
         public async Task<Item> GetById(int id)
@@ -84,5 +91,37 @@ namespace budget.models
                 Debug.WriteLine($"Error deleting item: {ex.Message}");
             }
         }
+
+        public async Task<User> GetUser()
+        {
+            return await _connection.Table<User>().FirstOrDefaultAsync();
+        }
+
+        public async Task<int> CreateUser(User user)
+        {
+            try
+            {
+                return await _connection.InsertAsync(user);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error inserting user: {ex.Message}");
+                return 0;
+            }
+        }
+
+
+        public async Task<int> UpdateUser(User user)
+        {
+            return await _connection.UpdateAsync(user);
+        }
+
+        public async Task<User> GetUserByEmail(string email)
+        {
+            return await _connection.Table<User>().FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+
+
     }
 }
