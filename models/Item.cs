@@ -19,7 +19,6 @@ namespace budget.models
         public string RecurrenceInterval { get; set; } = "None"; 
         public DateTime? NextDueDate { get; set; }
         public bool IsProcessed { get; set; }
-        public User? User { get; set; }
 
     }
 }

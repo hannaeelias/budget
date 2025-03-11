@@ -145,7 +145,7 @@ namespace budget
                 await _dbContext.CreateUser(user);
             }
 
-            user.Salary = _salary; // Assuming you added Salary property to User class
+            user.Salary = _salary; 
             await _dbContext.UpdateUser(user);
 
             double totalBills = _items.Sum(i => i.EstimatedCost);
@@ -173,7 +173,7 @@ namespace budget
                 case "yearly":
                     return currentDueDate.Value.AddYears(1);
                 default:
-                    return currentDueDate.Value; // Default, no change for other cases
+                    return currentDueDate.Value; 
             }
         }
 
@@ -208,14 +208,13 @@ namespace budget
             var user = await _dbContext.GetUser();
             if (user != null)
             {
-                // Populate the UI with user data (e.g., name, salary)
                 NameLabel.Text = "Hello, " + user.Name;
                 SalaryEntry.Text = user.Salary.ToString();
-                // Do the same for other data like email, profile picture, etc.
             }
             else
             {
-                // If no user exists, create a new one or prompt the user to sign in
+                NameLabel.Text = "Hello, " + "unknown";
+                SalaryEntry.Text = "1000";
             }
         }
 
@@ -224,20 +223,18 @@ namespace budget
             var user = await _dbContext.GetUser();
             if (user != null)
             {
-                _salary = user.Salary; // Retrieve stored salary
+                _salary = user.Salary; 
 
-                // Ensure recurring bills are updated (as described in the previous logic)
                 var items = await _dbContext.GetItemsForUser();
                 foreach (var item in items.Where(i => i.IsRecurring))
                 {
                     if (item.NextDueDate <= DateTime.Now)
                     {
                         item.NextDueDate = GetNextDueDate(item.RecurrenceInterval, item.NextDueDate);
-                        await _dbContext.Update(item); // Update the database
+                        await _dbContext.Update(item); 
                     }
                 }
 
-                // Recalculate remaining balance
                 double totalBills = items.Sum(i => i.EstimatedCost);
                 _remainingBalance = _salary - totalBills;
                 _originalRemainingBalance = _remainingBalance;
