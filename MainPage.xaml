@@ -75,10 +75,15 @@
                     <Button Text="Set Salary" Clicked="OnSetSalaryClicked" />
                     <Label x:Name="RemainingBalanceLabel" Text="Remaining: $" FontSize="18" />
 
+                    <Label Text="Savings Balance" FontSize="20" HorizontalOptions="Center" />
+                    <Label x:Name="SavingsBalanceLabel" Text="Savings: $0.00" FontSize="18" />
+
                     <Label Text="Save Percentage of Remaining" FontSize="20" HorizontalOptions="Center" />
                     <Slider x:Name="SavingsSlider" Minimum="0" Maximum="50" Value="10" />
-                    <Label x:Name="SavingsPercentageLabel" Text="Saving: 10%" FontSize="18" />
+                    <Label x:Name="SavingsPercentageLabel" Text="{Binding SavingsPercentage}" FontSize="18" />
                     <Button Text="Apply Savings" Clicked="OnApplySavingsClicked" />
+
+                    <Label x:Name="BalanceLabel" Text="{Binding BalanceText}" FontSize="18" TextColor="Black"/>
 
                     <Label Text="Distribute Remaining" FontSize="20" HorizontalOptions="Center" />
                     <Button Text="Per Week" Clicked="OnDistributeWeeklyClicked" />
