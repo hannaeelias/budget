@@ -26,13 +26,15 @@ public partial class Itemviewing : ContentPage
 
     private async void LoadItems()
     {
+        var user = await _dbContext.GetUser();
         if (_dbContext == null)
         {
             await DisplayAlert("Error", "Database context is not initialized.", "OK");
             return;
         }
 
-        var itemsFromDb = await _dbContext.GetItemsForUser();  
+        var itemsFromDb = await _dbContext.GetItemsForUser(user.Id);
+        _items.Clear();
         foreach (var item in itemsFromDb)
         {
             _items.Add(item); 

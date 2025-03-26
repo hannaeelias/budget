@@ -18,6 +18,7 @@ namespace budget
         private readonly AppDbContext _dbContext;
         private int _editItemId;
         private ObservableCollection<Item> _items;
+        private double _balance;
 
         public MainPage()
         {
@@ -26,13 +27,30 @@ namespace budget
             ItemsListView.ItemsSource = _items;
             _dbContext = new AppDbContext();
             LoadItems();
-            LoadUserData();
+            LoadUserData(GetNameLabel());
             SavingsSlider.ValueChanged += OnSavingsSliderChanged;
+            BalanceText = $"Balance: ${_balance:F2}";
+
         }
+        public string BalanceText
+        {
+            get => $"Balance: ${_balance:F2}";
+            set
+            {
+                if (_balance.ToString() != value)
+                {
+                    _balance = double.Parse(value.Replace("Balance: $", "").Trim());
+                    OnPropertyChanged(nameof(BalanceText));  // Notify the UI of the change
+                }
+            }
+        }
+
 
         private async void LoadItems()
         {
-            var items = await _dbContext.GetItemsForUser();
+            var user = await _dbContext.GetUser();
+
+            var items = await _dbContext.GetItemsForUser(user.Id);
             foreach (var item in items)
             {
                 // Add items to the UI list
@@ -69,11 +87,20 @@ namespace budget
                 return;
             }
 
+            var user = await _dbContext.GetUser();
+            if (user == null)
+            {
+                await DisplayAlert("Error", "User not found.", "OK");
+                return;
+            }
+
+
             string selectedCategory = CategoryEntry.SelectedItem?.ToString() ?? "Bill";
             string selectedStatus = StatusPicker.SelectedItem?.ToString() ?? "Not Paid";
 
             var item = new Item
             {
+                UserId = user.Id,
                 Name = NameEntry.Text,
                 Description = DescriptionEntry.Text,
                 Category = selectedCategory,
@@ -131,29 +158,48 @@ namespace budget
 
         private async void OnSetSalaryClicked(object sender, EventArgs e)
         {
+            // Validate the salary input
             if (!double.TryParse(SalaryEntry.Text, out _salary) || _salary <= 0)
             {
                 await DisplayAlert("Error", "Please enter a valid salary.", "OK");
                 return;
             }
 
-            // Save salary in user data
             var user = await _dbContext.GetUser();
+
             if (user == null)
             {
-                user = new User { Name = "Default User", birth = DateTime.Now };
+                // New user gets their salary as initial balance
+                user = new User
+                {
+                    Name = "Default User",
+                    birth = DateTime.Now,
+                    Salary = _salary,
+                    Balance = _salary,  // Set balance to salary initially
+                    LastUpdated = DateTime.Now
+                };
+
                 await _dbContext.CreateUser(user);
             }
+            else
+            {
+                // Update salary and reset balance to salary
+                user.Salary = _salary;
+                user.Balance = _salary;  // Reset the balance to the salary value
 
-            user.Salary = _salary; 
-            await _dbContext.UpdateUser(user);
+                await _dbContext.UpdateUser(user);
+            }
 
-            double totalBills = _items.Sum(i => i.EstimatedCost);
-            _remainingBalance = _salary - totalBills;
-            _originalRemainingBalance = _remainingBalance;
-
-            RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
+            // Update UI to show the new salary and balance
+            RemainingBalanceLabel.Text = $"Remaining: ${user.Balance:F2}";
+            await DisplayAlert("Success", "Salary updated successfully.", "OK");
         }
+
+
+
+
+
+
 
 
         private DateTime GetNextDueDate(string recurrenceInterval, DateTime? currentDueDate)
@@ -176,21 +222,49 @@ namespace budget
                     return currentDueDate.Value; 
             }
         }
-
-        private void OnSavingsSliderChanged(object? sender, ValueChangedEventArgs e)
+        private async void OnApplySavingsClicked(object sender, EventArgs e)
         {
-            SavingsPercentageLabel.Text = $"Saving: {e.NewValue:F0}%";
+            var user = await _dbContext.GetUser();
+            if (user == null)
+            {
+                await DisplayAlert("Error", "User data not found.", "OK");
+                return;
+            }
+
+            // Ensure the user has a savings balance field (initialize if missing)
+            if (user.SavingsBalance == null)
+                user.SavingsBalance = 0;
+
+            // Reset the savings balance to 0 before applying new savings
+            user.SavingsBalance = 0;
+
+            // Reset the balance to the salary before applying savings
+            user.Balance = user.Salary;
+
+            // Calculate savings based on the salary
+            double savingsAmount = (user.Salary * SavingsPercentage) / 100;
+
+            // Deduct savings from the balance
+            user.Balance -= savingsAmount;
+
+            // Add savings amount to the separate savings balance
+            user.SavingsBalance += savingsAmount;
+
+            // Save the updated user data
+            await _dbContext.UpdateUser(user);
+
+            // Update the UI
+            RemainingBalanceLabel.Text = $"Remaining: ${user.Balance:F2}";
+            SavingsBalanceLabel.Text = $"Savings: ${user.SavingsBalance:F2}"; // Display savings balance
+
+            // Display success message
+            await DisplayAlert("Success", "Savings applied successfully!", "OK");
         }
 
-        private void OnApplySavingsClicked(object sender, EventArgs e)
-        {
-            _remainingBalance = _originalRemainingBalance;
 
-            double savingsAmount = (_remainingBalance * SavingsSlider.Value) / 100;
-            _remainingBalance -= savingsAmount;
 
-            RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
-        }
+
+
 
         private void OnDistributeWeeklyClicked(object sender, EventArgs e)
         {
@@ -203,44 +277,100 @@ namespace budget
             AllowanceLabel.Text = $"Monthly Allowance: ${_remainingBalance:F2}";
         }
 
-        private async void LoadUserData()
+        private Label GetNameLabel()
+        {
+            return NameLabel;
+        }
+
+        private async void LoadUserData(Label nameLabel)
         {
             var user = await _dbContext.GetUser();
-            if (user != null)
+            if (user == null)
             {
-                NameLabel.Text = "Hello, " + user.Name;
-                SalaryEntry.Text = user.Salary.ToString();
+                user = new User
+                {
+                    Name = "Default User",
+                    birth = DateTime.Now,
+                    Salary = 0,
+                    Balance = 0,
+                    LastUpdated = DateTime.Now
+                };
+                await _dbContext.CreateUser(user);
             }
-            else
-            {
-                NameLabel.Text = "Hello, " + "unknown";
-                SalaryEntry.Text = "1000";
-            }
+
+            nameLabel.Text = $"Welcome, {user.Name}!";
+
+            _salary = user.Salary;
+            _remainingBalance = user.Balance;
+
+            SalaryEntry.Text = _salary > 0 ? _salary.ToString("F2") : "";
+            RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
         }
+
+
 
         private async void OnPageAppearing(object sender, EventArgs e)
         {
             var user = await _dbContext.GetUser();
             if (user != null)
             {
-                _salary = user.Salary; 
+                DateTime now = DateTime.Now;
+                DateTime lastUpdated = user.LastUpdated;
 
-                var items = await _dbContext.GetItemsForUser();
-                foreach (var item in items.Where(i => i.IsRecurring))
+                // Check if the current month is different from the last update month
+                if (lastUpdated.Month != now.Month || lastUpdated.Year != now.Year)
                 {
-                    if (item.NextDueDate <= DateTime.Now)
-                    {
-                        item.NextDueDate = GetNextDueDate(item.RecurrenceInterval, item.NextDueDate);
-                        await _dbContext.Update(item); 
-                    }
-                }
+                    // Reset balance to salary at the start of each new month
+                    user.Balance = user.Salary;
 
-                double totalBills = items.Sum(i => i.EstimatedCost);
-                _remainingBalance = _salary - totalBills;
-                _originalRemainingBalance = _remainingBalance;
-                RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
+                    // Apply savings to the new salary (not balance)
+                    double savingsAmount = (user.Salary * SavingsPercentage) / 100;
+                    user.SavingsBalance += savingsAmount;
+
+                    // Update last updated date
+                    user.LastUpdated = now;
+
+                    // Process bills (deduct from balance)
+                    var items = await _dbContext.GetItemsForUser(user.Id);
+                    foreach (var item in items.Where(i => i.IsRecurring))
+                    {
+                        // Check if bills are due and deduct them from balance
+                        while (item.NextDueDate <= now)
+                        {
+                            user.Balance -= item.EstimatedCost;
+                            item.NextDueDate = GetNextDueDate(item.RecurrenceInterval, item.NextDueDate);
+                            await _dbContext.Update(item); // Update the next due date for the recurring item
+                        }
+                    }
+
+                    await _dbContext.UpdateUser(user);
+                    RemainingBalanceLabel.Text = $"Remaining: ${user.Balance:F2}";
+                }
             }
         }
+
+
+        private double _savingsPercentage = 10;
+
+        public double SavingsPercentage
+        {
+            get => _savingsPercentage;
+            set
+            {
+                if (_savingsPercentage != value)
+                {
+                    _savingsPercentage = value;
+                    OnPropertyChanged(nameof(SavingsPercentage));
+                    SavingsPercentageLabel.Text = $"Saving: {value:F0}%";
+                }
+            }
+        }
+
+        private void OnSavingsSliderChanged(object? sender, ValueChangedEventArgs e)
+        {
+            SavingsPercentage = e.NewValue;
+        }
+
 
     }
 }

@@ -40,7 +40,7 @@ namespace budget
                 await dbContext.UpdateUser(user);
             }
 
-            var items = await dbContext.GetItemsForUser();
+            var items = await dbContext.GetItemsForUser(user.Id);
             foreach (var item in items.Where(i => i.IsRecurring && i.NextDueDate <= now))
             {
                 item.NextDueDate = GetNextDueDate(item.RecurrenceInterval, item.NextDueDate);

@@ -19,13 +19,13 @@ namespace budget.models
 
             string dbPath = Path.Combine(FileSystem.AppDataDirectory, DB_name);
             _connection = new SQLiteAsyncConnection(dbPath);
-
+            _connection.ExecuteAsync("PRAGMA foreign_keys = ON;");
             _connection.CreateTableAsync<User>();
             _connection.CreateTableAsync<Item>();
             
         }
 
-        public async Task<List<Item>> GetItemsForUser()
+        public async Task<List<Item>> GetItemsForUser(int id)
         {
             var user = await GetUser();
             if (user != null)
@@ -121,7 +121,9 @@ namespace budget.models
             return await _connection.Table<User>().FirstOrDefaultAsync(u => u.Email == email);
         }
 
-
-
+        internal async Task<IEnumerable<object>> GetItemsForUser()
+        {
+            throw new NotImplementedException();
+        }
     }
 }
