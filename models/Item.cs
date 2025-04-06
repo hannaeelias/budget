@@ -15,8 +15,11 @@ namespace budget.models
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public bool IsSelected { get; set; }
+        public bool IsRecurring { get; set; } 
+        public string RecurrenceInterval { get; set; } = "None"; 
+        public DateTime? NextDueDate { get; set; }
+        public bool IsProcessed { get; set; }
+        public User? User { get; set; }
 
-
-      
     }
 }

@@ -1,51 +1,62 @@
 ﻿using budget.models;
-using Microsoft.Exchange.WebServices.Data;
 using Microsoft.Maui.Controls;
 using System.Collections.Generic;
-using System.Collections.ObjectModel; 
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml;
 using Item = budget.models.Item;
 
 namespace budget
 {
     public partial class MainPage : ContentPage
     {
+        private double _originalRemainingBalance;
+        private double _salary = 0;
+        private double _remainingBalance = 0;
+
         private readonly AppDbContext _dbContext;
-        private int _editItemId; 
+        private int _editItemId;
         private ObservableCollection<Item> _items;
 
         public MainPage()
         {
             InitializeComponent();
             _items = new ObservableCollection<Item>();
-            ItemsListView.ItemsSource = _items; 
+            ItemsListView.ItemsSource = _items;
             _dbContext = new AppDbContext();
             LoadItems();
+            LoadUserData();
+            SavingsSlider.ValueChanged += OnSavingsSliderChanged;
         }
 
         private async void LoadItems()
         {
-            _items.Clear();
-            var items = await _dbContext.GetItems();
+            var items = await _dbContext.GetItemsForUser();
             foreach (var item in items)
             {
-                item.IsSelected = false; // Reset selection state
+                // Add items to the UI list
                 _items.Add(item);
             }
         }
+
         private void OnItemTapped(object sender, ItemTappedEventArgs e)
         {
             if (e.Item is Item tappedItem)
             {
                 tappedItem.IsSelected = !tappedItem.IsSelected;
+
+                // 🔹 Force UI update
+                var index = _items.IndexOf(tappedItem);
+                _items.Remove(tappedItem);
+                _items.Insert(index, tappedItem);
+
                 Console.WriteLine($"Item {tappedItem.Name} selection state: {tappedItem.IsSelected}");
             }
         }
 
         private async void OnSaveItemClicked(object sender, EventArgs e)
         {
-            // Validation for required fields
             if (string.IsNullOrEmpty(NameEntry.Text))
             {
                 await DisplayAlert("Error", "Name is required.", "OK");
@@ -57,34 +68,34 @@ namespace budget
                 await DisplayAlert("Error", "Estimated Cost must be a valid number.", "OK");
                 return;
             }
-            string selectedcatagory = CategoryEntry?.ToString() ?? "bill";
-            string selectedStatus = StatusPicker.SelectedItem?.ToString() ?? "Not paid";
+
+            string selectedCategory = CategoryEntry.SelectedItem?.ToString() ?? "Bill";
+            string selectedStatus = StatusPicker.SelectedItem?.ToString() ?? "Not Paid";
 
             var item = new Item
             {
                 Name = NameEntry.Text,
                 Description = DescriptionEntry.Text,
-                Category = selectedcatagory,
+                Category = selectedCategory,
                 Priority = PriorityEntry.Text,
-                EstimatedCost = estimatedCost, 
-                CreatedAt = CreatedAtPicker.Date, 
+                EstimatedCost = estimatedCost,
+                CreatedAt = CreatedAtPicker.Date,
                 IsSelected = false,
-                Status = selectedStatus
+                Status = selectedStatus,
+                IsRecurring = IsRecurringSwitch.IsToggled,
+                RecurrenceInterval = RecurrencePicker.SelectedItem?.ToString() ?? "None",
+                NextDueDate = IsRecurringSwitch.IsToggled ? NextDueDatePicker.Date : (DateTime?)null
             };
 
-            var items = await _dbContext.GetItems();
-            var existingItem = items.FirstOrDefault(i => i.Name == item.Name);
-
-            if (existingItem == null)
+            var result = await _dbContext.Create(item);
+            if (result > 0)
             {
-                await _dbContext.Create(item);
-                _items.Add(item); 
+                _items.Add(item);
                 await DisplayAlert("Success", "Item saved successfully.", "OK");
             }
             else
             {
-                // Item already exists, show a warning
-                await DisplayAlert("Warning", "An item with the same name already exists. please choose a diffrent name.", "OK");
+                await DisplayAlert("Error", "Failed to save item.", "OK");
             }
         }
 
@@ -107,30 +118,132 @@ namespace budget
             foreach (var item in itemsToDelete)
             {
                 await _dbContext.Delete(item);
-                _items.Remove(item); // Remove from the UI
+                _items.Remove(item);
             }
 
             await DisplayAlert("Success", "Selected items deleted successfully.", "OK");
         }
 
-
-        private void OnItemSelected(object sender, SelectedItemChangedEventArgs e)
-        {
-            if (e.SelectedItem is Item selectedItem)
-            {
-                _editItemId = selectedItem.Id;
-                NameEntry.Text = selectedItem.Name;
-                DescriptionEntry.Text = selectedItem.Description;
-                PriorityEntry.Text = selectedItem.Priority;
-                EstimatedCostEntry.Text = selectedItem.EstimatedCost.ToString();
-            }
-        }
         private async void OnNavigateToOtherPageClicked(object sender, EventArgs e)
         {
-            // Navigate to OtherPage
             await Navigation.PushAsync(new Itemviewing());
         }
 
+        private async void OnSetSalaryClicked(object sender, EventArgs e)
+        {
+            if (!double.TryParse(SalaryEntry.Text, out _salary) || _salary <= 0)
+            {
+                await DisplayAlert("Error", "Please enter a valid salary.", "OK");
+                return;
+            }
+
+            // Save salary in user data
+            var user = await _dbContext.GetUser();
+            if (user == null)
+            {
+                user = new User { Name = "Default User", birth = DateTime.Now };
+                await _dbContext.CreateUser(user);
+            }
+
+            user.Salary = _salary; // Assuming you added Salary property to User class
+            await _dbContext.UpdateUser(user);
+
+            double totalBills = _items.Sum(i => i.EstimatedCost);
+            _remainingBalance = _salary - totalBills;
+            _originalRemainingBalance = _remainingBalance;
+
+            RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
+        }
+
+
+        private DateTime GetNextDueDate(string recurrenceInterval, DateTime? currentDueDate)
+        {
+            if (currentDueDate == null) return DateTime.Now;
+
+            switch (recurrenceInterval.ToLower())
+            {
+                case "monthly":
+                    return currentDueDate.Value.AddMonths(1);
+                case "quarter":
+                    return currentDueDate.Value.AddMonths(3);
+                case "semester":
+                    return currentDueDate.Value.AddMonths(6);
+                case "weekly":
+                    return currentDueDate.Value.AddDays(7);
+                case "yearly":
+                    return currentDueDate.Value.AddYears(1);
+                default:
+                    return currentDueDate.Value; // Default, no change for other cases
+            }
+        }
+
+        private void OnSavingsSliderChanged(object? sender, ValueChangedEventArgs e)
+        {
+            SavingsPercentageLabel.Text = $"Saving: {e.NewValue:F0}%";
+        }
+
+        private void OnApplySavingsClicked(object sender, EventArgs e)
+        {
+            _remainingBalance = _originalRemainingBalance;
+
+            double savingsAmount = (_remainingBalance * SavingsSlider.Value) / 100;
+            _remainingBalance -= savingsAmount;
+
+            RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
+        }
+
+        private void OnDistributeWeeklyClicked(object sender, EventArgs e)
+        {
+            double weeklyAllowance = _remainingBalance / 4;
+            AllowanceLabel.Text = $"Weekly Allowance: ${weeklyAllowance:F2}";
+        }
+
+        private void OnDistributeMonthlyClicked(object sender, EventArgs e)
+        {
+            AllowanceLabel.Text = $"Monthly Allowance: ${_remainingBalance:F2}";
+        }
+
+        private async void LoadUserData()
+        {
+            var user = await _dbContext.GetUser();
+            if (user != null)
+            {
+                // Populate the UI with user data (e.g., name, salary)
+                NameLabel.Text = "Hello, " + user.Name;
+                SalaryEntry.Text = user.Salary.ToString();
+                // Do the same for other data like email, profile picture, etc.
+            }
+            else
+            {
+                // If no user exists, create a new one or prompt the user to sign in
+            }
+        }
+
+        private async void OnPageAppearing(object sender, EventArgs e)
+        {
+            var user = await _dbContext.GetUser();
+            if (user != null)
+            {
+                _salary = user.Salary; // Retrieve stored salary
+
+                // Ensure recurring bills are updated (as described in the previous logic)
+                var items = await _dbContext.GetItemsForUser();
+                foreach (var item in items.Where(i => i.IsRecurring))
+                {
+                    if (item.NextDueDate <= DateTime.Now)
+                    {
+                        item.NextDueDate = GetNextDueDate(item.RecurrenceInterval, item.NextDueDate);
+                        await _dbContext.Update(item); // Update the database
+                    }
+                }
+
+                // Recalculate remaining balance
+                double totalBills = items.Sum(i => i.EstimatedCost);
+                _remainingBalance = _salary - totalBills;
+                _originalRemainingBalance = _remainingBalance;
+                RemainingBalanceLabel.Text = $"Remaining: ${_remainingBalance:F2}";
+            }
+        }
 
     }
 }
